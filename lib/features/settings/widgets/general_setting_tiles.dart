@@ -1,6 +1,8 @@
 import 'dart:io';
 
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
+import 'package:hiddify/core/haptic/haptic_service.dart';
 import 'package:hiddify/core/localization/translations.dart';
 import 'package:hiddify/core/preferences/general_preferences.dart';
 import 'package:hiddify/core/theme/app_theme_mode.dart';
@@ -25,7 +27,7 @@ class GeneralSettingTiles extends HookConsumerWidget {
         ListTile(
           title: Text(t.settings.general.themeMode),
           subtitle: Text(themeMode.present(t)),
-          leading: const Icon(Icons.light_mode),
+          leading: const Icon(FluentIcons.weather_moon_20_regular),
           onTap: () async {
             final selectedThemeMode = await showDialog<AppThemeMode>(
               context: context,
@@ -46,24 +48,33 @@ class GeneralSettingTiles extends HookConsumerWidget {
               },
             );
             if (selectedThemeMode != null) {
-              await ref
-                  .read(themePreferencesProvider.notifier)
-                  .changeThemeMode(selectedThemeMode);
+              await ref.read(themePreferencesProvider.notifier).changeThemeMode(selectedThemeMode);
             }
           },
         ),
         const EnableAnalyticsPrefTile(),
-        if (Platform.isAndroid)
+        SwitchListTile(
+          title: Text(t.settings.general.autoIpCheck),
+          secondary: const Icon(FluentIcons.globe_search_24_regular),
+          value: ref.watch(Preferences.autoCheckIp),
+          onChanged: ref.read(Preferences.autoCheckIp.notifier).update,
+        ),
+        if (Platform.isAndroid) ...[
           SwitchListTile(
             title: Text(t.settings.general.dynamicNotification),
-            secondary: const Icon(Icons.speed),
-            value: ref.watch(dynamicNotificationProvider),
+            secondary: const Icon(FluentIcons.top_speed_24_regular),
+            value: ref.watch(Preferences.dynamicNotification),
             onChanged: (value) async {
-              await ref
-                  .read(dynamicNotificationProvider.notifier)
-                  .update(value);
+              await ref.read(Preferences.dynamicNotification.notifier).update(value);
             },
           ),
+          SwitchListTile(
+            title: Text(t.settings.general.hapticFeedback),
+            secondary: const Icon(FluentIcons.phone_vibrate_24_regular),
+            value: ref.watch(hapticServiceProvider),
+            onChanged: ref.read(hapticServiceProvider.notifier).updatePreference,
+          ),
+        ],
         if (PlatformUtils.isDesktop) ...[
           SwitchListTile(
             title: Text(t.settings.general.autoStart),
@@ -78,11 +89,9 @@ class GeneralSettingTiles extends HookConsumerWidget {
           ),
           SwitchListTile(
             title: Text(t.settings.general.silentStart),
-            value: ref.watch(silentStartNotifierProvider),
+            value: ref.watch(Preferences.silentStart),
             onChanged: (value) async {
-              await ref
-                  .read(silentStartNotifierProvider.notifier)
-                  .update(value);
+              await ref.read(Preferences.silentStart.notifier).update(value);
             },
           ),
         ],

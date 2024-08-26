@@ -1,6 +1,34 @@
 # Changelog
 
-## [0.14.1.dev] - 2023-1-19
+## [0.16.0.dev] - 2024-2-18
+
+### New Features and Improvements
+
+- Changed App name to **Hiddify**
+- Changed App icon
+- Added Mux (**Experimental**)
+- Added Cloudflare WARP (**Experimental**)
+- Added connection info
+  - when connected, name of the active node, speed and IP address are shown on home page
+  - delay indicator below connection button shows active node's ping
+- Added VPN Service (Windows & Linux) (**Experimental**)
+  - VPN Service circumvents need for administrator permission while using TUN
+- Changed in-app icons (using [Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons))
+- Redesigned navigation flow, separating config options
+- Added haptic feedback
+- Added detailed subscription info in profile edit page
+- Added Chinese Taiwan language. [PR#410](https://github.com/hiddify/hiddify-next/pull/410) by [junlin03](https://github.com/junlin03) and [PR#491](https://github.com/hiddify/hiddify-next/pull/491) by [kouhe3](https://github.com/kouhe3)
+- Added Japanese Readme. [PR#371](https://github.com/hiddify/hiddify-next/pull/371) by [Ikko Eltociear Ashimine](https://github.com/eltociear)
+
+### Bug Fixes
+
+- Fixed TLS Tricks bugs
+- Fixed logs on iOS. [PR#414](https://github.com/hiddify/hiddify-next/pull/414) by [Amir Mohammadi](https://github.com/amirsaam) and [PR#416](https://github.com/hiddify/hiddify-next/pull/416) by [Ebrahim Tahernejad](https://github.com/EbrahimTahernejad)
+- Fixed Android service mode
+- Fixed UI inconsistencies
+- Fixed Readme download URL. [PR#482](https://github.com/hiddify/hiddify-next/pull/482) by [Ali Afsharzadeh](https://github.com/guoard)
+
+## [0.14.1.dev] - 2024-1-19
 
 ### New Features and Improvements
 
@@ -18,7 +46,7 @@
 - Fixed infinite subscription traffic
 - Fixed infinite subscription expiry. [PR#334](https://github.com/hiddify/hiddify-next/pull/334) by [Pavel Volkov](https://github.com/pvolkov)
 
-## [0.14.0.dev] - 2023-1-14
+## [0.14.0.dev] - 2024-1-14
 
 ### New Features and Improvements
 
@@ -35,11 +63,11 @@
 - Fixed minor UI bugs
 - Fixed subscription profiles with infinite traffic
 
-## [0.13.6] - 2023-1-7
+## [0.13.6] - 2024-1-7
 
 - First stable 0.13.x release. check changes from 0.13.0.dev to 0.13.5.dev for more details.
 
-## [0.13.5.dev] - 2023-1-6
+## [0.13.5.dev] - 2024-1-6
 
 ### New Features and Improvements
 
@@ -54,7 +82,7 @@
 - Fixed Android service mode
 - Fixed QR code scanner not scanning deep links
 
-## [0.13.4.dev] - 2023-1-4
+## [0.13.4.dev] - 2024-1-4
 
 ### New Features and Improvements
 
@@ -68,7 +96,7 @@
 - Fixed profile auto update service
 - Fixed localization mistakes in Chinese. [PR#288](https://github.com/hiddify/hiddify-next/pull/288) by [wldjdjsks](https://github.com/huajizhige)
 
-## [0.13.3.dev] - 2023-1-2
+## [0.13.3.dev] - 2024-1-2
 
 ### New Features and Improvements
 
@@ -203,7 +231,7 @@
 - Added Geo Asset Settings
   - Update geo assets and use recommended providers
 - Added **winget** Release
-  - Now you're able to install and update Hiddify Next on Windows using [winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/).
+  - Now you're able to install and update Hiddify on Windows using [winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/).
 - Added Turkish Translations. [PR#173](https://github.com/hiddify/hiddify-next/pull/173) by [Hasan Karlı](https://github.com/hasankarli)
 - Changed in-app Toasts
 - Updated Core Sing-box Version to 1.7.0
@@ -250,6 +278,7 @@
 - Fixed localization mistakes in Russian. [PR#95](https://github.com/hiddify/hiddify-next/pull/95) by [solokot](https://github.com/solokot)
 - Fixed localization mistakes in Russian. [PR#74](https://github.com/hiddify/hiddify-next/pull/74) by [Elshad Guseynov](https://github.com/lifeindarkside)
 
+[0.16.0.dev]: https://github.com/hiddify/hiddify-next/releases/tag/v0.16.0.dev
 [0.14.1.dev]: https://github.com/hiddify/hiddify-next/releases/tag/v0.14.1.dev
 [0.14.0.dev]: https://github.com/hiddify/hiddify-next/releases/tag/v0.14.0.dev
 [0.13.6]: https://github.com/hiddify/hiddify-next/releases/tag/v0.13.6

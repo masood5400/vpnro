@@ -1,4 +1,9 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
+import 'package:hiddify/core/haptic/haptic_service.dart';
+import 'package:hiddify/core/preferences/general_preferences.dart';
+import 'package:hiddify/core/utils/throttler.dart';
 import 'package:hiddify/features/connection/notifier/connection_notifier.dart';
 import 'package:hiddify/features/proxy/data/proxy_data_providers.dart';
 import 'package:hiddify/features/proxy/model/ip_info_entity.dart';
@@ -6,70 +11,101 @@ import 'package:hiddify/features/proxy/model/proxy_entity.dart';
 import 'package:hiddify/features/proxy/model/proxy_failure.dart';
 import 'package:hiddify/utils/riverpod_utils.dart';
 import 'package:hiddify/utils/utils.dart';
-import 'package:loggy/loggy.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'active_proxy_notifier.g.dart';
 
-typedef ActiveProxyInfo = ({
-  ProxyItemEntity proxy,
-  AsyncValue<IpInfo?> ipInfo,
-});
-
 @riverpod
-Stream<ProxyItemEntity?> activeProxyGroup(ActiveProxyGroupRef ref) async* {
-  final serviceRunning = await ref.watch(serviceRunningProvider.future);
-  if (!serviceRunning) {
-    throw const ServiceNotRunning();
+class IpInfoNotifier extends _$IpInfoNotifier with AppLogger {
+  @override
+  Future<IpInfo> build() async {
+    ref.disposeDelay(const Duration(seconds: 20));
+    final cancelToken = CancelToken();
+    Timer? timer;
+    ref.onDispose(() {
+      loggy.debug("disposing");
+      cancelToken.cancel();
+      timer?.cancel();
+    });
+
+    ref.listen(
+      serviceRunningProvider,
+      (_, next) => _idle = false,
+    );
+
+    final autoCheck = ref.watch(Preferences.autoCheckIp);
+    final serviceRunning = await ref.watch(serviceRunningProvider.future);
+    // loggy.debug(
+    //   "idle? [$_idle], forced? [$_forceCheck], connected? [$serviceRunning]",
+    // );
+    if (!_forceCheck && !serviceRunning) {
+      throw const ServiceNotRunning();
+    } else if ((_idle && !_forceCheck) || (!_forceCheck && serviceRunning && !autoCheck)) {
+      throw const UnknownIp();
+    }
+
+    _forceCheck = false;
+    final info = await ref.watch(proxyRepositoryProvider).getCurrentIpInfo(cancelToken).getOrElse(
+      (err) {
+        loggy.warning("error getting proxy ip info", err, StackTrace.current);
+        // throw err; //hiddify: remove exception to be logged
+        throw const UnknownIp();
+      },
+    ).run();
+
+    timer = Timer(
+      const Duration(seconds: 10),
+      () {
+        loggy.debug("entering idle mode");
+        _idle = true;
+        ref.invalidateSelf();
+      },
+    );
+
+    return info;
   }
-  yield* ref
-      .watch(proxyRepositoryProvider)
-      .watchActiveProxies()
-      .map((event) => event.getOrElse((l) => throw l))
-      .map((event) => event.firstOrNull?.items.firstOrNull);
+
+  bool _idle = false;
+  bool _forceCheck = false;
+
+  Future<void> refresh() async {
+    if (state.isLoading) return;
+    loggy.debug("refreshing");
+    state = const AsyncLoading();
+    await ref.read(hapticServiceProvider.notifier).lightImpact();
+    _forceCheck = true;
+    ref.invalidateSelf();
+  }
 }
 
-@riverpod
-Future<IpInfo?> proxyIpInfo(ProxyIpInfoRef ref) async {
-  final serviceRunning = await ref.watch(serviceRunningProvider.future);
-  if (!serviceRunning) {
-    return null;
-  }
-  final cancelToken = CancelToken();
-  ref.onDispose(() {
-    Loggy("ProxyIpInfo").debug("canceling");
-    cancelToken.cancel();
-  });
-  return ref
-      .watch(proxyRepositoryProvider)
-      .getCurrentIpInfo(cancelToken)
-      .getOrElse(
-    (err) {
-      Loggy("ProxyIpInfo").error("error getting proxy ip info", err);
-      throw err;
-    },
-  ).run();
-}
-
-@riverpod
+@Riverpod(keepAlive: true)
 class ActiveProxyNotifier extends _$ActiveProxyNotifier with AppLogger {
   @override
-  AsyncValue<ActiveProxyInfo> build() {
-    ref.disposeDelay(const Duration(seconds: 20));
-    final ipInfo = ref.watch(proxyIpInfoProvider);
-    final activeProxies = ref.watch(activeProxyGroupProvider);
-    return switch (activeProxies) {
-      AsyncData(value: final activeGroup?) =>
-        AsyncData((proxy: activeGroup, ipInfo: ipInfo)),
-      AsyncError(:final error, :final stackTrace) =>
-        AsyncError(error, stackTrace),
-      _ => const AsyncLoading(),
-    };
+  Stream<ProxyItemEntity> build() async* {
+    // ref.disposeDelay(const Duration(seconds: 20));
+
+    final serviceRunning = await ref.watch(serviceRunningProvider.future);
+    if (!serviceRunning) {
+      throw const ServiceNotRunning();
+    }
+
+    yield* ref.watch(proxyRepositoryProvider).watchActiveProxies().map((event) => event.getOrElse((l) => throw l)).map((event) => event.firstOrNull!.items.first);
   }
 
-  Future<void> refreshIpInfo() async {
-    if (state case AsyncData(:final value) when !value.ipInfo.isLoading) {
-      ref.invalidate(proxyIpInfoProvider);
-    }
+  final _urlTestThrottler = Throttler(const Duration(seconds: 2));
+
+  Future<void> urlTest(String groupTag_) async {
+    var groupTag = groupTag_;
+    _urlTestThrottler(
+      () async {
+        if (state case AsyncData()) {
+          await ref.read(hapticServiceProvider.notifier).lightImpact();
+          await ref.read(proxyRepositoryProvider).urlTest(groupTag).getOrElse((err) {
+            loggy.warning("error testing group", err);
+            throw err;
+          }).run();
+        }
+      },
+    );
   }
 }

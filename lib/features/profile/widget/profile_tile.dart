@@ -1,3 +1,4 @@
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -6,12 +7,14 @@ import 'package:go_router/go_router.dart';
 import 'package:hiddify/core/localization/translations.dart';
 import 'package:hiddify/core/model/failures.dart';
 import 'package:hiddify/core/router/router.dart';
+import 'package:hiddify/core/widget/adaptive_icon.dart';
 import 'package:hiddify/core/widget/adaptive_menu.dart';
 import 'package:hiddify/features/common/confirmation_dialogs.dart';
 import 'package:hiddify/features/common/qr_code_dialog.dart';
 import 'package:hiddify/features/profile/model/profile_entity.dart';
 import 'package:hiddify/features/profile/notifier/profile_notifier.dart';
 import 'package:hiddify/features/profile/overview/profiles_overview_notifier.dart';
+import 'package:hiddify/gen/fonts.gen.dart';
 import 'package:hiddify/utils/utils.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:percent_indicator/percent_indicator.dart';
@@ -38,7 +41,7 @@ class ProfileTile extends HookConsumerWidget {
         CustomToast.error(t.presentShortError(err)).show(context);
       },
       initialOnSuccess: () {
-        if (context.mounted) context.pop();
+        if (context.mounted && context.canPop()) context.pop();
       },
     );
 
@@ -47,12 +50,9 @@ class ProfileTile extends HookConsumerWidget {
       _ => null,
     };
 
-    final effectiveMargin = isMain
-        ? const EdgeInsets.symmetric(horizontal: 16, vertical: 8)
-        : const EdgeInsets.only(left: 12, right: 12, bottom: 12);
+    final effectiveMargin = isMain ? const EdgeInsets.symmetric(horizontal: 16, vertical: 8) : const EdgeInsets.only(left: 12, right: 12, bottom: 12);
     final double effectiveElevation = profile.active ? 12 : 4;
-    final effectiveOutlineColor =
-        profile.active ? theme.colorScheme.outlineVariant : Colors.transparent;
+    final effectiveOutlineColor = profile.active ? theme.colorScheme.outlineVariant : Colors.transparent;
 
     return Card(
       margin: effectiveMargin,
@@ -95,9 +95,7 @@ class ProfileTile extends HookConsumerWidget {
                       if (selectActiveMutation.state.isInProgress) return;
                       if (profile.active) return;
                       selectActiveMutation.setFuture(
-                        ref
-                            .read(profilesOverviewNotifierProvider.notifier)
-                            .selectActiveProfile(profile.id),
+                        ref.read(profilesOverviewNotifierProvider.notifier).selectActiveProfile(profile.id),
                       );
                     }
                   },
@@ -117,22 +115,25 @@ class ProfileTile extends HookConsumerWidget {
                               color: Colors.transparent,
                               clipBehavior: Clip.antiAlias,
                               child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Flexible(
                                     child: Text(
                                       profile.name,
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
-                                      style: theme.textTheme.titleMedium,
-                                      semanticsLabel: t.profile
-                                          .activeProfileNameSemanticLabel(
+                                      style: theme.textTheme.titleMedium?.copyWith(
+                                        fontFamily: FontFamily.emoji,
+                                      ),
+                                      semanticsLabel: t.profile.activeProfileNameSemanticLabel(
                                         name: profile.name,
                                       ),
                                     ),
                                   ),
-                                  const Icon(Icons.arrow_drop_down),
+                                  const Icon(
+                                    FluentIcons.caret_down_16_filled,
+                                    size: 16,
+                                  ),
                                 ],
                               ),
                             ),
@@ -192,11 +193,9 @@ class ProfileActionButton extends HookConsumerWidget {
               if (ref.read(updateProfileProvider(profile.id)).isLoading) {
                 return;
               }
-              ref
-                  .read(updateProfileProvider(profile.id).notifier)
-                  .updateProfile(profile as RemoteProfileEntity);
+              ref.read(updateProfileProvider(profile.id).notifier).updateProfile(profile as RemoteProfileEntity);
             },
-            child: const Icon(Icons.update),
+            child: const Icon(FluentIcons.arrow_sync_24_filled),
           ),
         ),
       );
@@ -210,7 +209,7 @@ class ProfileActionButton extends HookConsumerWidget {
             message: MaterialLocalizations.of(context).showMenuTooltip,
             child: InkWell(
               onTap: toggleVisibility,
-              child: const Icon(Icons.more_vert),
+              child: Icon(AdaptiveIcon(context).more),
             ),
           ),
         );
@@ -234,9 +233,7 @@ class ProfileActionsMenu extends HookConsumerWidget {
       initialOnFailure: (err) {
         CustomToast.error(t.presentShortError(err)).show(context);
       },
-      initialOnSuccess: () =>
-          CustomToast.success(t.profile.share.exportConfigToClipboardSuccess)
-              .show(context),
+      initialOnSuccess: () => CustomToast.success(t.profile.share.exportConfigToClipboardSuccess).show(context),
     );
     final deleteProfileMutation = useMutation(
       initialOnFailure: (err) {
@@ -248,19 +245,17 @@ class ProfileActionsMenu extends HookConsumerWidget {
       if (profile case RemoteProfileEntity())
         AdaptiveMenuItem(
           title: t.profile.update.buttonTxt,
-          icon: Icons.update,
+          icon: FluentIcons.arrow_sync_24_regular,
           onTap: () {
             if (ref.read(updateProfileProvider(profile.id)).isLoading) {
               return;
             }
-            ref
-                .read(updateProfileProvider(profile.id).notifier)
-                .updateProfile(profile as RemoteProfileEntity);
+            ref.read(updateProfileProvider(profile.id).notifier).updateProfile(profile as RemoteProfileEntity);
           },
         ),
       AdaptiveMenuItem(
         title: t.profile.share.buttonText,
-        icon: Icons.share,
+        icon: AdaptiveIcon(context).share,
         subItems: [
           if (profile case RemoteProfileEntity(:final url, :final name)) ...[
             AdaptiveMenuItem(
@@ -270,8 +265,7 @@ class ProfileActionsMenu extends HookConsumerWidget {
                 if (link.isNotEmpty) {
                   await Clipboard.setData(ClipboardData(text: link));
                   if (context.mounted) {
-                    CustomToast(t.profile.share.exportToClipboardSuccess)
-                        .show(context);
+                    CustomToast(t.profile.share.exportToClipboardSuccess).show(context);
                   }
                 }
               },
@@ -296,23 +290,21 @@ class ProfileActionsMenu extends HookConsumerWidget {
                 return;
               }
               exportConfigMutation.setFuture(
-                ref
-                    .read(profilesOverviewNotifierProvider.notifier)
-                    .exportConfigToClipboard(profile),
+                ref.read(profilesOverviewNotifierProvider.notifier).exportConfigToClipboard(profile),
               );
             },
           ),
         ],
       ),
       AdaptiveMenuItem(
-        icon: Icons.edit,
+        icon: FluentIcons.edit_24_regular,
         title: t.profile.edit.buttonTxt,
         onTap: () async {
           await ProfileDetailsRoute(profile.id).push(context);
         },
       ),
       AdaptiveMenuItem(
-        icon: Icons.delete,
+        icon: FluentIcons.delete_24_regular,
         title: t.profile.delete.buttonTxt,
         onTap: () async {
           if (deleteProfileMutation.state.isInProgress) {
@@ -322,12 +314,11 @@ class ProfileActionsMenu extends HookConsumerWidget {
             context,
             title: t.profile.delete.buttonTxt,
             message: t.profile.delete.confirmationMsg,
+            icon: FluentIcons.delete_24_regular,
           );
           if (deleteConfirmed) {
             deleteProfileMutation.setFuture(
-              ref
-                  .read(profilesOverviewNotifierProvider.notifier)
-                  .deleteProfile(profile),
+              ref.read(profilesOverviewNotifierProvider.notifier).deleteProfile(profile),
             );
           }
         },
@@ -357,8 +348,7 @@ class ProfileSubscriptionInfo extends HookConsumerWidget {
       return (t.profile.subscription.remainingDuration(duration: "∞"), null);
     } else {
       return (
-        t.profile.subscription
-            .remainingDuration(duration: subInfo.remaining.inDays),
+        t.profile.subscription.remainingDuration(duration: subInfo.remaining.inDays),
         null,
       );
     }
@@ -380,8 +370,7 @@ class ProfileSubscriptionInfo extends HookConsumerWidget {
               subInfo.total > 10 * 1099511627776 //10TB
                   ? "∞ GiB"
                   : subInfo.consumption.sizeOf(subInfo.total),
-              semanticsLabel:
-                  t.profile.subscription.remainingTrafficSemanticLabel(
+              semanticsLabel: t.profile.subscription.remainingTrafficSemanticLabel(
                 consumed: subInfo.consumption.sizeGB(),
                 total: subInfo.total.sizeGB(),
               ),

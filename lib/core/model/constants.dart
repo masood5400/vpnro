@@ -1,5 +1,5 @@
 abstract class Constants {
-  static const appName = "Hiddify Next";
+  static const appName = "Hiddify";
   static const githubUrl = "https://github.com/hiddify/hiddify-next";
   static const githubReleasesApiUrl =
       "https://api.github.com/repos/hiddify/hiddify-next/releases";
@@ -15,3 +15,5 @@ abstract class Constants {
   static const cfWarpTermsOfService =
       "https://www.cloudflare.com/application/terms/";
 }
+
+const kAnimationDuration = Duration(milliseconds: 250);

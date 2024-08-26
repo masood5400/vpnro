@@ -1,15 +1,25 @@
+import 'dart:convert';
+
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:fpdart/fpdart.dart';
+import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hiddify/core/localization/translations.dart';
 import 'package:hiddify/core/model/failures.dart';
+import 'package:hiddify/core/widget/adaptive_icon.dart';
 import 'package:hiddify/features/common/confirmation_dialogs.dart';
+import 'package:hiddify/features/profile/details/json_editor.dart';
 import 'package:hiddify/features/profile/details/profile_details_notifier.dart';
 import 'package:hiddify/features/profile/model/profile_entity.dart';
 import 'package:hiddify/features/settings/widgets/widgets.dart';
 import 'package:hiddify/utils/utils.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:humanizer/humanizer.dart';
+// import 'package:lucy_editor/lucy_editor.dart';
+// import 'package:re_highlight/languages/json.dart';
+// import 'package:re_highlight/styles/atom-one-light.dart';
+// import 'package:json_editor_flutter/json_editor_flutter.dart';
 
 class ProfileDetailsPage extends HookConsumerWidget with PresLogger {
   const ProfileDetailsPage(this.id, {super.key});
@@ -36,14 +46,12 @@ class ProfileDetailsPage extends HookConsumerWidget with PresLogger {
             );
           case AsyncError(:final error):
             final String action;
-            if (ref.read(provider) case AsyncData(value: final data)
-                when data.isEditing) {
+            if (ref.read(provider) case AsyncData(value: final data) when data.isEditing) {
               action = t.profile.save.failureMsg;
             } else {
               action = t.profile.add.failureMsg;
             }
-            CustomAlertDialog.fromErr(t.presentError(error, action: action))
-                .show(context);
+            CustomAlertDialog.fromErr(t.presentError(error, action: action)).show(context);
         }
       },
     );
@@ -79,9 +87,7 @@ class ProfileDetailsPage extends HookConsumerWidget with PresLogger {
 
     switch (ref.watch(provider)) {
       case AsyncData(value: final state):
-        final showLoadingOverlay = state.isBusy ||
-            state.save is MutationSuccess ||
-            state.delete is MutationSuccess;
+        final showLoadingOverlay = state.isBusy || state.save is MutationSuccess || state.delete is MutationSuccess;
 
         return Stack(
           children: [
@@ -93,8 +99,19 @@ class ProfileDetailsPage extends HookConsumerWidget with PresLogger {
                       title: Text(t.profile.detailsPageTitle),
                       pinned: true,
                       actions: [
+                        // MenuItemButton(
+                        //   onPressed: context.pop,
+                        //   child: Text(
+                        //     MaterialLocalizations.of(context).cancelButtonLabel,
+                        //   ),
+                        // ),
+                        MenuItemButton(
+                          onPressed: notifier.save,
+                          child: Text(t.profile.save.buttonText),
+                        ),
                         if (state.isEditing)
                           PopupMenuButton(
+                            icon: Icon(AdaptiveIcon(context).more),
                             itemBuilder: (context) {
                               return [
                                 if (state.profile case RemoteProfileEntity())
@@ -107,11 +124,11 @@ class ProfileDetailsPage extends HookConsumerWidget with PresLogger {
                                 PopupMenuItem(
                                   child: Text(t.profile.delete.buttonTxt),
                                   onTap: () async {
-                                    final deleteConfirmed =
-                                        await showConfirmationDialog(
+                                    final deleteConfirmed = await showConfirmationDialog(
                                       context,
                                       title: t.profile.delete.buttonTxt,
                                       message: t.profile.delete.confirmationMsg,
+                                      icon: FluentIcons.delete_24_regular,
                                     );
                                     if (deleteConfirmed) {
                                       await notifier.delete();
@@ -124,9 +141,7 @@ class ProfileDetailsPage extends HookConsumerWidget with PresLogger {
                       ],
                     ),
                     Form(
-                      autovalidateMode: state.showErrorMessages
-                          ? AutovalidateMode.always
-                          : AutovalidateMode.disabled,
+                      autovalidateMode: state.showErrorMessages ? AutovalidateMode.always : AutovalidateMode.disabled,
                       child: SliverList.list(
                         children: [
                           Padding(
@@ -136,20 +151,13 @@ class ProfileDetailsPage extends HookConsumerWidget with PresLogger {
                             ),
                             child: CustomTextFormField(
                               initialValue: state.profile.name,
-                              onChanged: (value) =>
-                                  notifier.setField(name: value),
-                              validator: (value) => (value?.isEmpty ?? true)
-                                  ? t.profile.detailsForm.emptyNameMsg
-                                  : null,
+                              onChanged: (value) => notifier.setField(name: value),
+                              validator: (value) => (value?.isEmpty ?? true) ? t.profile.detailsForm.emptyNameMsg : null,
                               label: t.profile.detailsForm.nameLabel,
                               hint: t.profile.detailsForm.nameHint,
                             ),
                           ),
-                          if (state.profile
-                              case RemoteProfileEntity(
-                                :final url,
-                                :final options
-                              )) ...[
+                          if (state.profile case RemoteProfileEntity(:final url, :final options)) ...[
                             Padding(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16,
@@ -157,12 +165,8 @@ class ProfileDetailsPage extends HookConsumerWidget with PresLogger {
                               ),
                               child: CustomTextFormField(
                                 initialValue: url,
-                                onChanged: (value) =>
-                                    notifier.setField(url: value),
-                                validator: (value) =>
-                                    (value != null && !isUrl(value))
-                                        ? t.profile.detailsForm.invalidUrlMsg
-                                        : null,
+                                onChanged: (value) => notifier.setField(url: value),
+                                validator: (value) => (value != null && !isUrl(value)) ? t.profile.detailsForm.invalidUrlMsg : null,
                                 label: t.profile.detailsForm.urlLabel,
                                 hint: t.profile.detailsForm.urlHint,
                               ),
@@ -175,17 +179,16 @@ class ProfileDetailsPage extends HookConsumerWidget with PresLogger {
                                     ) ??
                                     t.general.toggle.disabled,
                               ),
-                              leading: const Icon(Icons.update),
+                              leading: const Icon(FluentIcons.arrow_sync_24_regular),
                               onTap: () async {
-                                final intervalInHours =
-                                    await SettingsInputDialog(
-                                  title: t.profile.detailsForm
-                                      .updateIntervalDialogTitle,
+                                final intervalInHours = await SettingsInputDialog(
+                                  title: t.profile.detailsForm.updateIntervalDialogTitle,
                                   initialValue: options?.updateInterval.inHours,
                                   optionalAction: (
                                     t.general.state.disable,
                                     () => notifier.setField(
-                                        updateInterval: none()),
+                                          updateInterval: none(),
+                                        ),
                                   ),
                                   validator: isPort,
                                   mapTo: int.tryParse,
@@ -198,45 +201,94 @@ class ProfileDetailsPage extends HookConsumerWidget with PresLogger {
                               },
                             ),
                           ],
-                          if (state.isEditing)
+                          // Padding(
+                          //   padding: const EdgeInsets.symmetric(
+                          //     horizontal: 16,
+                          //     vertical: 8,
+                          //   ),
+                          // child: CustomTextFormField(
+                          //   initialValue: state.configContent,
+                          //   // onChanged: (value) => notifier.setField(name: value),
+                          //   maxLines: 7,
+                          //   label: t.profile.detailsForm.configContentLabel,
+                          //   hint: t.profile.detailsForm.configContentHint,
+                          // ),
+                          // ),
+                          if (state.isEditing) ...[
                             ListTile(
                               title: Text(t.profile.detailsForm.lastUpdate),
+                              leading: const Icon(FluentIcons.history_24_regular),
                               subtitle: Text(state.profile.lastUpdate.format()),
                               dense: true,
                             ),
-                        ],
-                      ),
-                    ),
-                    SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 16,
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            OverflowBar(
-                              spacing: 12,
-                              overflowAlignment: OverflowBarAlignment.end,
-                              children: [
-                                OutlinedButton(
-                                  onPressed: context.pop,
-                                  child: Text(
-                                    MaterialLocalizations.of(context)
-                                        .cancelButtonLabel,
+                          ],
+                          if (state.profile case RemoteProfileEntity(:final subInfo?)) ...[
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 18,
+                                vertical: 8,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text.rich(
+                                    style: Theme.of(context).textTheme.bodySmall,
+                                    TextSpan(
+                                      children: [
+                                        _buildSubProp(
+                                          FluentIcons.arrow_upload_16_regular,
+                                          subInfo.upload.size(),
+                                          t.profile.subscription.upload,
+                                        ),
+                                        const TextSpan(text: "     "),
+                                        _buildSubProp(
+                                          FluentIcons.arrow_download_16_regular,
+                                          subInfo.download.size(),
+                                          t.profile.subscription.download,
+                                        ),
+                                        const TextSpan(text: "     "),
+                                        _buildSubProp(
+                                          FluentIcons.arrow_bidirectional_up_down_16_regular,
+                                          subInfo.total.size(),
+                                          t.profile.subscription.total,
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                FilledButton(
-                                  onPressed: notifier.save,
-                                  child: Text(t.profile.save.buttonText),
-                                ),
-                              ],
+                                  const Gap(12),
+                                  Text.rich(
+                                    style: Theme.of(context).textTheme.bodySmall,
+                                    TextSpan(
+                                      children: [
+                                        _buildSubProp(
+                                          FluentIcons.clock_dismiss_20_regular,
+                                          subInfo.expire.format(),
+                                          t.profile.subscription.expireDate,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
-                        ),
+                          if (state.isEditing) ...[
+                            SizedBox(
+                              height: MediaQuery.of(context).size.height * 0.9,
+                              child: JsonEditor(
+                                expandedObjects: const ["outbounds"],
+                                onChanged: (value) {
+                                  if (value == null) return;
+                                  const encoder = const JsonEncoder.withIndent('  ');
+
+                                  notifier.setField(configContent: encoder.convert(value));
+                                },
+                                enableHorizontalScroll: true,
+                                json: state.configContent,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                   ],
@@ -277,5 +329,15 @@ class ProfileDetailsPage extends HookConsumerWidget with PresLogger {
       default:
         return const Scaffold();
     }
+  }
+
+  InlineSpan _buildSubProp(IconData icon, String text, String semanticLabel) {
+    return TextSpan(
+      children: [
+        WidgetSpan(child: Icon(icon, size: 16, semanticLabel: semanticLabel)),
+        const TextSpan(text: " "),
+        TextSpan(text: text),
+      ],
+    );
   }
 }

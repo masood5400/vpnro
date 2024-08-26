@@ -1,12 +1,15 @@
+import 'dart:io';
+
+import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hiddify/core/localization/translations.dart';
 import 'package:hiddify/utils/platform_utils.dart';
-import 'package:json_annotation/json_annotation.dart';
 
 @JsonEnum(valueField: 'key')
 enum ServiceMode {
   proxy("proxy"),
   systemProxy("system-proxy"),
-  tun("vpn");
+  tun("vpn"),
+  tunService("vpn-service");
 
   const ServiceMode(this.key);
 
@@ -15,18 +18,37 @@ enum ServiceMode {
   static ServiceMode get defaultMode =>
       PlatformUtils.isDesktop ? systemProxy : tun;
 
+  /// supported service mode based on platform, use this instead of [values] in UI
   static List<ServiceMode> get choices {
-    if (PlatformUtils.isDesktop) {
+    if (Platform.isWindows || Platform.isLinux) {
       return values;
+    } else if (Platform.isMacOS) {
+      return [proxy, systemProxy, tun];
     }
+    // mobile
     return [proxy, tun];
   }
 
+  bool get isExperimental => switch (this) {
+        tun => PlatformUtils.isDesktop,
+        tunService => PlatformUtils.isDesktop,
+        _ => false,
+      };
+
   String present(TranslationsEn t) => switch (this) {
-        proxy => t.settings.config.serviceModes.proxy,
-        systemProxy => t.settings.config.serviceModes.systemProxy,
+        proxy => t.config.serviceModes.proxy,
+        systemProxy => t.config.serviceModes.systemProxy,
         tun =>
-          "${t.settings.config.serviceModes.tun}${PlatformUtils.isDesktop ? " (${t.settings.experimental})" : ""}",
+          "${t.config.serviceModes.tun}${isExperimental ? " (${t.settings.experimental})" : ""}",
+        tunService =>
+          "${t.config.serviceModes.tunService}${isExperimental ? " (${t.settings.experimental})" : ""}",
+      };
+
+  String presentShort(TranslationsEn t) => switch (this) {
+        proxy => t.config.shortServiceModes.proxy,
+        systemProxy => t.config.shortServiceModes.systemProxy,
+        tun => t.config.shortServiceModes.tun,
+        tunService => t.config.shortServiceModes.tunService,
       };
 }
 
@@ -42,10 +64,10 @@ enum IPv6Mode {
   final String key;
 
   String present(TranslationsEn t) => switch (this) {
-        disable => t.settings.config.ipv6Modes.disable,
-        enable => t.settings.config.ipv6Modes.enable,
-        prefer => t.settings.config.ipv6Modes.prefer,
-        only => t.settings.config.ipv6Modes.only,
+        disable => t.config.ipv6Modes.disable,
+        enable => t.config.ipv6Modes.enable,
+        prefer => t.config.ipv6Modes.prefer,
+        only => t.config.ipv6Modes.only,
       };
 }
 
@@ -70,7 +92,7 @@ enum DomainStrategy {
 enum TunImplementation {
   mixed,
   system,
-  gVisor;
+  gvisor;
 }
 
 enum MuxProtocol {
@@ -79,12 +101,17 @@ enum MuxProtocol {
   yamux;
 }
 
+@JsonEnum(valueField: 'key')
 enum WarpDetourMode {
-  outbound,
-  inbound;
+  proxyOverWarp("proxy_over_warp"),
+  warpOverProxy("warp_over_proxy");
+
+  const WarpDetourMode(this.key);
+
+  final String key;
 
   String present(TranslationsEn t) => switch (this) {
-        outbound => t.settings.config.warpDetourModes.outbound,
-        inbound => t.settings.config.warpDetourModes.inbound,
+        proxyOverWarp => t.config.warpDetourModes.proxyOverWarp,
+        warpOverProxy => t.config.warpDetourModes.warpOverProxy,
       };
 }

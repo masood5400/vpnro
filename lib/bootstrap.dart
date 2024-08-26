@@ -17,7 +17,7 @@ import 'package:hiddify/core/preferences/preferences_provider.dart';
 import 'package:hiddify/features/app/widget/app.dart';
 import 'package:hiddify/features/auto_start/notifier/auto_start_notifier.dart';
 import 'package:hiddify/features/deep_link/notifier/deep_link_notifier.dart';
-import 'package:hiddify/features/geo_asset/data/geo_asset_data_providers.dart';
+
 import 'package:hiddify/features/log/data/log_data_providers.dart';
 import 'package:hiddify/features/profile/data/profile_data_providers.dart';
 import 'package:hiddify/features/profile/notifier/active_profile_notifier.dart';
@@ -36,8 +36,7 @@ Future<void> lazyBootstrap(
 
   LoggerController.preInit();
   FlutterError.onError = Logger.logFlutterError;
-  WidgetsBinding.instance.platformDispatcher.onError =
-      Logger.logPlatformDispatcherError;
+  WidgetsBinding.instance.platformDispatcher.onError = Logger.logPlatformDispatcherError;
 
   final stopWatch = Stopwatch()..start();
 
@@ -62,14 +61,11 @@ Future<void> lazyBootstrap(
     () => container.read(sharedPreferencesProvider.future),
   );
 
-  final enableAnalytics =
-      await container.read(analyticsControllerProvider.future);
+  final enableAnalytics = await container.read(analyticsControllerProvider.future);
   if (enableAnalytics) {
     await _init(
       "analytics",
-      () => container
-          .read(analyticsControllerProvider.notifier)
-          .enableAnalytics(),
+      () => container.read(analyticsControllerProvider.notifier).enableAnalytics(),
     );
   }
 
@@ -78,8 +74,7 @@ Future<void> lazyBootstrap(
     () async {
       try {
         await PreferencesMigration(
-          sharedPreferences:
-              container.read(sharedPreferencesProvider).requireValue,
+          sharedPreferences: container.read(sharedPreferencesProvider).requireValue,
         ).migrate();
       } catch (e, stackTrace) {
         Logger.bootstrap.error("preferences migration failed", e, stackTrace);
@@ -98,40 +93,29 @@ Future<void> lazyBootstrap(
       () => container.read(windowNotifierProvider.future),
     );
 
-    final silentStart = container.read(silentStartNotifierProvider);
-    Logger.bootstrap
-        .debug("silent start [${silentStart ? "Enabled" : "Disabled"}]");
+    final silentStart = container.read(Preferences.silentStart);
+    Logger.bootstrap.debug("silent start [${silentStart ? "Enabled" : "Disabled"}]");
     if (!silentStart) {
       await container.read(windowNotifierProvider.notifier).open(focus: false);
     } else {
       Logger.bootstrap.debug("silent start, remain hidden accessible via tray");
     }
-
     await _init(
       "auto start service",
       () => container.read(autoStartNotifierProvider.future),
     );
   }
-
   await _init(
     "logs repository",
     () => container.read(logRepositoryProvider.future),
   );
   await _init("logger controller", () => LoggerController.postInit(debug));
+
   Logger.bootstrap.info(appInfo.format());
 
   await _init(
-    "geo assets repository",
-    () => container.read(geoAssetRepositoryProvider.future),
-  );
-  await _init(
     "profile repository",
     () => container.read(profileRepositoryProvider.future),
-  );
-
-  await _init(
-    "sing-box",
-    () => container.read(singboxServiceProvider).init(),
   );
 
   await _safeInit(
@@ -144,7 +128,10 @@ Future<void> lazyBootstrap(
     () => container.read(deepLinkNotifierProvider.future),
     timeout: 1000,
   );
-
+  await _init(
+    "sing-box",
+    () => container.read(singboxServiceProvider).init(),
+  );
   if (PlatformUtils.isDesktop) {
     await _safeInit(
       "system tray",
@@ -183,13 +170,11 @@ Future<T> _init<T>(
   int? timeout,
 }) async {
   final stopWatch = Stopwatch()..start();
-  Future<T> func() => timeout != null
-      ? initializer().timeout(Duration(milliseconds: timeout))
-      : initializer();
+  Logger.bootstrap.info("initializing [$name]");
+  Future<T> func() => timeout != null ? initializer().timeout(Duration(milliseconds: timeout)) : initializer();
   try {
     final result = await func();
-    Logger.bootstrap
-        .debug("[$name] initialized in ${stopWatch.elapsedMilliseconds}ms");
+    Logger.bootstrap.debug("[$name] initialized in ${stopWatch.elapsedMilliseconds}ms");
     return result;
   } catch (e, stackTrace) {
     Logger.bootstrap.error("[$name] error initializing", e, stackTrace);
@@ -206,7 +191,7 @@ Future<T?> _safeInit<T>(
 }) async {
   try {
     return await _init(name, initializer, timeout: timeout);
-  } catch (_) {
+  } catch (e) {
     return null;
   }
 }

@@ -1,7 +1,8 @@
 import 'dart:convert';
 
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:hiddify/core/model/range.dart';
+import 'package:hiddify/core/model/optional_range.dart';
+import 'package:hiddify/core/utils/json_converters.dart';
 import 'package:hiddify/features/log/model/log_level.dart';
 import 'package:hiddify/singbox/model/singbox_config_enum.dart';
 import 'package:hiddify/singbox/model/singbox_rule.dart';
@@ -15,6 +16,9 @@ class SingboxConfigOption with _$SingboxConfigOption {
 
   @JsonSerializable(fieldRename: FieldRename.kebab)
   const factory SingboxConfigOption({
+    required String region,
+    required bool blockAds,
+    required bool useXrayCoreWhenPossible,
     required bool executeConfigAsIs,
     required LogLevel logLevel,
     required bool resolveDestination,
@@ -24,44 +28,30 @@ class SingboxConfigOption with _$SingboxConfigOption {
     required String directDnsAddress,
     required DomainStrategy directDnsDomainStrategy,
     required int mixedPort,
+    required int tproxyPort,
     required int localDnsPort,
     required TunImplementation tunImplementation,
     required int mtu,
     required bool strictRoute,
     required String connectionTestUrl,
-    @IntervalConverter() required Duration urlTestInterval,
+    @IntervalInSecondsConverter() required Duration urlTestInterval,
     required bool enableClashApi,
     required int clashApiPort,
     required bool enableTun,
+    required bool enableTunService,
     required bool setSystemProxy,
     required bool bypassLan,
     required bool allowConnectionFromLan,
     required bool enableFakeDns,
     required bool enableDnsRouting,
     required bool independentDnsCache,
-    required bool enableTlsFragment,
-    @RangeWithOptionalCeilJsonConverter()
-    required RangeWithOptionalCeil tlsFragmentSize,
-    @RangeWithOptionalCeilJsonConverter()
-    required RangeWithOptionalCeil tlsFragmentSleep,
-    required bool enableTlsMixedSniCase,
-    required bool enableTlsPadding,
-    @RangeWithOptionalCeilJsonConverter()
-    required RangeWithOptionalCeil tlsPaddingSize,
-    required bool enableMux,
-    required bool muxPadding,
-    required int muxMaxStreams,
-    required MuxProtocol muxProtocol,
-    required bool enableWarp,
-    required WarpDetourMode warpDetourMode,
-    required String warpLicenseKey,
-    required String warpCleanIp,
-    required int warpPort,
-    @RangeWithOptionalCeilJsonConverter()
-    required RangeWithOptionalCeil warpNoise,
-    required String geoipPath,
-    required String geositePath,
+    // required String geoipPath,
+    // required String geositePath,
     required List<SingboxRule> rules,
+    required SingboxMuxOption mux,
+    required SingboxTlsTricks tlsTricks,
+    required SingboxWarpOption warp,
+    required SingboxWarpOption warp2,
   }) = _SingboxConfigOption;
 
   String format() {
@@ -69,17 +59,54 @@ class SingboxConfigOption with _$SingboxConfigOption {
     return encoder.convert(toJson());
   }
 
-  factory SingboxConfigOption.fromJson(Map<String, dynamic> json) =>
-      _$SingboxConfigOptionFromJson(json);
+  factory SingboxConfigOption.fromJson(Map<String, dynamic> json) => _$SingboxConfigOptionFromJson(json);
 }
 
-class IntervalConverter implements JsonConverter<Duration, String> {
-  const IntervalConverter();
+@freezed
+class SingboxWarpOption with _$SingboxWarpOption {
+  @JsonSerializable(fieldRename: FieldRename.kebab)
+  const factory SingboxWarpOption({
+    required bool enable,
+    required WarpDetourMode mode,
+    required String wireguardConfig,
+    required String licenseKey,
+    required String accountId,
+    required String accessToken,
+    required String cleanIp,
+    required int cleanPort,
+    @OptionalRangeJsonConverter() required OptionalRange noise,
+    @OptionalRangeJsonConverter() required OptionalRange noiseSize,
+    @OptionalRangeJsonConverter() required OptionalRange noiseDelay,
+    @OptionalRangeJsonConverter() required String noiseMode,
+  }) = _SingboxWarpOption;
 
-  @override
-  Duration fromJson(String json) =>
-      Duration(minutes: int.parse(json.replaceAll("m", "")));
+  factory SingboxWarpOption.fromJson(Map<String, dynamic> json) => _$SingboxWarpOptionFromJson(json);
+}
 
-  @override
-  String toJson(Duration object) => "${object.inMinutes}m";
+@freezed
+class SingboxMuxOption with _$SingboxMuxOption {
+  @JsonSerializable(fieldRename: FieldRename.kebab)
+  const factory SingboxMuxOption({
+    required bool enable,
+    required bool padding,
+    required int maxStreams,
+    required MuxProtocol protocol,
+  }) = _SingboxMuxOption;
+
+  factory SingboxMuxOption.fromJson(Map<String, dynamic> json) => _$SingboxMuxOptionFromJson(json);
+}
+
+@freezed
+class SingboxTlsTricks with _$SingboxTlsTricks {
+  @JsonSerializable(fieldRename: FieldRename.kebab)
+  const factory SingboxTlsTricks({
+    required bool enableFragment,
+    @OptionalRangeJsonConverter() required OptionalRange fragmentSize,
+    @OptionalRangeJsonConverter() required OptionalRange fragmentSleep,
+    required bool mixedSniCase,
+    required bool enablePadding,
+    @OptionalRangeJsonConverter() required OptionalRange paddingSize,
+  }) = _SingboxTlsTricks;
+
+  factory SingboxTlsTricks.fromJson(Map<String, dynamic> json) => _$SingboxTlsTricksFromJson(json);
 }

@@ -4,15 +4,14 @@ import 'package:hiddify/features/profile/model/profile_entity.dart';
 
 void main() {
   const validBaseUrl = "https://example.com/configurations/user1/filename.yaml";
-  const validExtendedUrl =
-      "https://example.com/configurations/user1/filename.yaml?test#b";
+  const validExtendedUrl = "https://example.com/configurations/user1/filename.yaml?test#b";
   const validSupportUrl = "https://example.com/support";
 
   group(
     "parse",
     () {
       test(
-        "url with file extension, no headers",
+        "Should use filename in url with no headers and fragment",
         () {
           final profile = ProfileParser.parse(validBaseUrl, {});
 
@@ -24,7 +23,7 @@ void main() {
       );
 
       test(
-        "url with url, no headers",
+        "Should use fragment in url with no headers",
         () {
           final profile = ProfileParser.parse(validExtendedUrl, {});
 
@@ -36,11 +35,12 @@ void main() {
       );
 
       test(
-        "with base64 profile-title header",
+        "Should use base64 title in headers",
         () {
           final headers = <String, List<String>>{
             "profile-title": ["base64:ZXhhbXBsZVRpdGxl"],
             "profile-update-interval": ["1"],
+            "test-url": [validBaseUrl],
             "subscription-userinfo": [
               "upload=0;download=1024;total=10240.5;expire=1704054600.55",
             ],
@@ -51,6 +51,7 @@ void main() {
 
           expect(profile.name, equals("exampleTitle"));
           expect(profile.url, equals(validExtendedUrl));
+          expect(profile.testUrl, equals(validBaseUrl));
           expect(
             profile.options,
             equals(const ProfileOptions(updateInterval: Duration(hours: 1))),
@@ -62,7 +63,7 @@ void main() {
                 upload: 0,
                 download: 1024,
                 total: 10240,
-                expire: DateTime(2024),
+                expire: DateTime.fromMillisecondsSinceEpoch(1704054600 * 1000),
                 webPageUrl: validBaseUrl,
                 supportUrl: validSupportUrl,
               ),
@@ -72,7 +73,7 @@ void main() {
       );
 
       test(
-        "with infinite traffic and time",
+        "Should use infinite when given 0 for subscription properties",
         () {
           final headers = <String, List<String>>{
             "profile-title": ["title"],

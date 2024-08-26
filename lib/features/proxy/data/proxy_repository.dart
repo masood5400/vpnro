@@ -19,9 +19,7 @@ abstract interface class ProxyRepository {
   TaskEither<ProxyFailure, Unit> urlTest(String groupTag);
 }
 
-class ProxyRepositoryImpl
-    with ExceptionHandler, InfraLogger
-    implements ProxyRepository {
+class ProxyRepositoryImpl with ExceptionHandler, InfraLogger implements ProxyRepository {
   ProxyRepositoryImpl({
     required this.singbox,
     required this.client,
@@ -32,7 +30,7 @@ class ProxyRepositoryImpl
 
   @override
   Stream<Either<ProxyFailure, List<ProxyGroupEntity>>> watchProxies() {
-    return singbox.watchOutbounds().map((event) {
+    return singbox.watchGroups().map((event) {
       final groupWithSelected = {
         for (final group in event) group.tag: group.selected,
       };
@@ -66,7 +64,7 @@ class ProxyRepositoryImpl
 
   @override
   Stream<Either<ProxyFailure, List<ProxyGroupEntity>>> watchActiveProxies() {
-    return singbox.watchActiveOutbounds().map((event) {
+    return singbox.watchActiveGroups().map((event) {
       final groupWithSelected = {
         for (final group in event) group.tag: group.selected,
       };
@@ -103,24 +101,30 @@ class ProxyRepositoryImpl
     String outboundTag,
   ) {
     return exceptionHandler(
-      () => singbox
-          .selectOutbound(groupTag, outboundTag)
-          .mapLeft(ProxyUnexpectedFailure.new)
-          .run(),
+      () => singbox.selectOutbound(groupTag, outboundTag).mapLeft(ProxyUnexpectedFailure.new).run(),
       ProxyUnexpectedFailure.new,
     );
   }
 
   @override
-  TaskEither<ProxyFailure, Unit> urlTest(String groupTag) {
+  TaskEither<ProxyFailure, Unit> urlTest(String groupTag_) {
+    var groupTag = groupTag_;
+    loggy.debug("testing group: [$groupTag]");
+    if (!["auto"].contains(groupTag)) {
+      loggy.warning("only auto proxy group can do url test. Please change go code if you want");
+    }
+    groupTag = "auto";
+
     return exceptionHandler(
       () => singbox.urlTest(groupTag).mapLeft(ProxyUnexpectedFailure.new).run(),
       ProxyUnexpectedFailure.new,
     );
   }
 
-  final Map<String, IpInfo Function(Map<String, dynamic> response)>
-      _ipInfoSources = {
+  static final Map<String, IpInfo Function(Map<String, dynamic> response)> _ipInfoSources = {
+    // "https://geolocation-db.com/json/": IpInfo.fromGeolocationDbComJson, //bug response is not json
+    "https://ipwho.is/": IpInfo.fromIpwhoIsJson,
+    "https://api.ip.sb/geoip/": IpInfo.fromIpSbJson,
     "https://ipapi.co/json/": IpInfo.fromIpApiCoJson,
     "https://ipinfo.io/json/": IpInfo.fromIpInfoIoJson,
   };
@@ -129,22 +133,25 @@ class ProxyRepositoryImpl
   TaskEither<ProxyFailure, IpInfo> getCurrentIpInfo(CancelToken cancelToken) {
     return TaskEither.tryCatch(
       () async {
+        Object? error;
         for (final source in _ipInfoSources.entries) {
           try {
             loggy.debug("getting current ip info using [${source.key}]");
             final response = await client.get<Map<String, dynamic>>(
               source.key,
               cancelToken: cancelToken,
+              proxyOnly: true,
             );
             if (response.statusCode == 200 && response.data != null) {
               return source.value(response.data!);
             }
-          } catch (e) {
-            loggy.debug("failed getting ip info using [${source.key}]", e);
+          } catch (e, s) {
+            loggy.debug("failed getting ip info using [${source.key}]", e, s);
+            error = e;
             continue;
           }
         }
-        throw const ProxyFailure.unexpected();
+        throw UnableToRetrieveIp(error, StackTrace.current);
       },
       ProxyUnexpectedFailure.new,
     );

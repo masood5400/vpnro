@@ -23,8 +23,7 @@ class AnalyticsController extends _$AnalyticsController with AppLogger {
     return _preferences.getBool(enableAnalyticsPrefKey) ?? true;
   }
 
-  SharedPreferences get _preferences =>
-      ref.read(sharedPreferencesProvider).requireValue;
+  SharedPreferences get _preferences => ref.read(sharedPreferencesProvider).requireValue;
 
   Future<void> enableAnalytics() async {
     if (state case AsyncData(value: final enabled)) {
@@ -48,6 +47,8 @@ class AnalyticsController extends _$AnalyticsController with AppLogger {
           options.debug = kDebugMode;
           options.enableNativeCrashHandling = true;
           options.enableNdkScopeSync = true;
+          // options.attachScreenshot = true;
+          options.serverName = "";
           options.attachThreads = true;
           options.tracesSampleRate = 0.20;
           options.enableUserInteractionTracing = true;

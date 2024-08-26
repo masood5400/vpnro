@@ -1,146 +1,141 @@
-import 'package:dartx/dartx.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:hiddify/core/localization/translations.dart';
 import 'package:hiddify/core/model/constants.dart';
-import 'package:hiddify/core/model/range.dart';
-import 'package:hiddify/features/config_option/model/config_option_entity.dart';
-import 'package:hiddify/features/config_option/model/config_option_patch.dart';
+import 'package:hiddify/core/model/optional_range.dart';
+import 'package:hiddify/core/widget/custom_alert_dialog.dart';
+import 'package:hiddify/features/config_option/data/config_option_repository.dart';
 import 'package:hiddify/features/config_option/notifier/warp_option_notifier.dart';
-import 'package:hiddify/features/settings/widgets/settings_input_dialog.dart';
+import 'package:hiddify/features/config_option/widget/preference_tile.dart';
 import 'package:hiddify/singbox/model/singbox_config_enum.dart';
 import 'package:hiddify/utils/uri_utils.dart';
 import 'package:hiddify/utils/validators.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 class WarpOptionsTiles extends HookConsumerWidget {
-  const WarpOptionsTiles({
-    required this.options,
-    required this.defaultOptions,
-    required this.onChange,
-    super.key,
-  });
-
-  final ConfigOptionEntity options;
-  final ConfigOptionEntity defaultOptions;
-  final Future<void> Function(ConfigOptionPatch patch) onChange;
+  const WarpOptionsTiles({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = ref.watch(translationsProvider);
 
-    final warpPrefaceCompleted = ref.watch(warpOptionNotifierProvider);
-    final canChangeOptions = warpPrefaceCompleted && options.enableWarp;
+    final warpOptions = ref.watch(warpOptionNotifierProvider);
+    final warpPrefaceCompleted = warpOptions.consentGiven;
+    final enableWarp = ref.watch(ConfigOptions.enableWarp);
+    final canChangeOptions = warpPrefaceCompleted && enableWarp;
+
+    ref.listen(
+      warpOptionNotifierProvider.select((value) => value.configGeneration),
+      (previous, next) async {
+        if (next case AsyncData(value: final log) when log.isNotEmpty) {
+          await CustomAlertDialog(
+            title: t.config.warpConfigGenerated,
+            message: log,
+          ).show(context);
+        }
+      },
+    );
 
     return Column(
       children: [
-        SwitchListTile.adaptive(
-          title: Text(t.settings.config.enableWarp),
-          value: options.enableWarp,
+        SwitchListTile(
+          title: Text(t.config.enableWarp),
+          value: enableWarp,
           onChanged: (value) async {
             if (!warpPrefaceCompleted) {
-              final agreed = await showAdaptiveDialog<bool>(
+              final agreed = await showDialog<bool>(
                 context: context,
                 builder: (context) => const WarpLicenseAgreementModal(),
               );
               if (agreed ?? false) {
                 await ref.read(warpOptionNotifierProvider.notifier).agree();
-                await onChange(ConfigOptionPatch(enableWarp: value));
+                await ref.read(ConfigOptions.enableWarp.notifier).update(value);
               }
             } else {
-              await onChange(ConfigOptionPatch(enableWarp: value));
+              await ref.read(ConfigOptions.enableWarp.notifier).update(value);
             }
           },
         ),
         ListTile(
-          title: Text(t.settings.config.warpDetourMode),
-          subtitle: Text(options.warpDetourMode.present(t)),
+          title: Text(t.config.generateWarpConfig),
+          subtitle: canChangeOptions
+              ? switch (warpOptions.configGeneration) {
+                  AsyncLoading() => const LinearProgressIndicator(),
+                  AsyncError() => Text(
+                      t.config.missingWarpConfig,
+                      style: TextStyle(color: Theme.of(context).colorScheme.error),
+                    ),
+                  _ => null,
+                }
+              : null,
           enabled: canChangeOptions,
           onTap: () async {
-            final warpDetourMode = await SettingsPickerDialog(
-              title: t.settings.config.warpDetourMode,
-              selected: options.warpDetourMode,
-              options: WarpDetourMode.values,
-              getTitle: (e) => e.present(t),
-              resetValue: defaultOptions.warpDetourMode,
-            ).show(context);
-            if (warpDetourMode == null) return;
-            await onChange(
-              ConfigOptionPatch(warpDetourMode: warpDetourMode),
-            );
+            await ref.read(warpOptionNotifierProvider.notifier).generateWarpConfig();
+            await ref.read(warpOptionNotifierProvider.notifier).generateWarp2Config();
           },
         ),
-        ListTile(
-          title: Text(t.settings.config.warpLicenseKey),
-          subtitle: Text(
-            options.warpLicenseKey.isEmpty
-                ? t.general.notSet
-                : options.warpLicenseKey,
-          ),
+        ChoicePreferenceWidget(
+          selected: ref.watch(ConfigOptions.warpDetourMode),
+          preferences: ref.watch(ConfigOptions.warpDetourMode.notifier),
           enabled: canChangeOptions,
-          onTap: () async {
-            final licenseKey = await SettingsInputDialog(
-              title: t.settings.config.warpLicenseKey,
-              initialValue: options.warpLicenseKey,
-              resetValue: defaultOptions.warpLicenseKey,
-            ).show(context);
-            if (licenseKey == null) return;
-            await onChange(ConfigOptionPatch(warpLicenseKey: licenseKey));
-          },
+          choices: WarpDetourMode.values,
+          title: t.config.warpDetourMode,
+          presentChoice: (value) => value.present(t),
         ),
-        ListTile(
-          title: Text(t.settings.config.warpCleanIp),
-          subtitle: Text(options.warpCleanIp),
+        ValuePreferenceWidget(
+          value: ref.watch(ConfigOptions.warpLicenseKey),
+          preferences: ref.watch(ConfigOptions.warpLicenseKey.notifier),
           enabled: canChangeOptions,
-          onTap: () async {
-            final warpCleanIp = await SettingsInputDialog(
-              title: t.settings.config.warpCleanIp,
-              initialValue: options.warpCleanIp,
-              resetValue: defaultOptions.warpCleanIp,
-            ).show(context);
-            if (warpCleanIp == null || warpCleanIp.isBlank) return;
-            await onChange(ConfigOptionPatch(warpCleanIp: warpCleanIp));
-          },
+          title: t.config.warpLicenseKey,
+          presentValue: (value) => value.isEmpty ? t.general.notSet : value,
         ),
-        ListTile(
-          title: Text(t.settings.config.warpPort),
-          subtitle: Text(options.warpPort.toString()),
+        ValuePreferenceWidget(
+          value: ref.watch(ConfigOptions.warpCleanIp),
+          preferences: ref.watch(ConfigOptions.warpCleanIp.notifier),
           enabled: canChangeOptions,
-          onTap: () async {
-            final warpPort = await SettingsInputDialog(
-              title: t.settings.config.warpPort,
-              initialValue: options.warpPort,
-              resetValue: defaultOptions.warpPort,
-              validator: isPort,
-              mapTo: int.tryParse,
-              digitsOnly: true,
-            ).show(context);
-            if (warpPort == null) return;
-            await onChange(
-              ConfigOptionPatch(warpPort: warpPort),
-            );
-          },
+          title: t.config.warpCleanIp,
         ),
-        ListTile(
-          title: Text(t.settings.config.warpNoise),
-          subtitle: Text(options.warpNoise.present(t)),
+        ValuePreferenceWidget(
+          value: ref.watch(ConfigOptions.warpPort),
+          preferences: ref.watch(ConfigOptions.warpPort.notifier),
           enabled: canChangeOptions,
-          onTap: () async {
-            final warpNoise = await SettingsInputDialog(
-              title: t.settings.config.warpNoise,
-              initialValue: options.warpNoise.format(),
-              resetValue: defaultOptions.warpNoise.format(),
-            ).show(context);
-            if (warpNoise == null) return;
-            await onChange(
-              ConfigOptionPatch(
-                warpNoise: RangeWithOptionalCeil.tryParse(
-                  warpNoise,
-                  allowEmpty: true,
-                ),
-              ),
-            );
-          },
+          title: t.config.warpPort,
+          inputToValue: int.tryParse,
+          validateInput: isPort,
+          digitsOnly: true,
+        ),
+        ValuePreferenceWidget(
+          value: ref.watch(ConfigOptions.warpNoise),
+          preferences: ref.watch(ConfigOptions.warpNoise.notifier),
+          enabled: canChangeOptions,
+          title: t.config.warpNoise,
+          inputToValue: (input) => OptionalRange.tryParse(input, allowEmpty: true),
+          presentValue: (value) => value.present(t),
+          formatInputValue: (value) => value.format(),
+        ),
+        ValuePreferenceWidget(
+          value: ref.watch(ConfigOptions.warpNoiseMode),
+          preferences: ref.watch(ConfigOptions.warpNoiseMode.notifier),
+          enabled: canChangeOptions,
+          title: t.config.warpNoiseMode,
+        ),
+        ValuePreferenceWidget(
+          value: ref.watch(ConfigOptions.warpNoiseSize),
+          preferences: ref.watch(ConfigOptions.warpNoiseSize.notifier),
+          enabled: canChangeOptions,
+          title: t.config.warpNoiseSize,
+          inputToValue: (input) => OptionalRange.tryParse(input, allowEmpty: true),
+          presentValue: (value) => value.present(t),
+          formatInputValue: (value) => value.format(),
+        ),
+        ValuePreferenceWidget(
+          value: ref.watch(ConfigOptions.warpNoiseDelay),
+          preferences: ref.watch(ConfigOptions.warpNoiseDelay.notifier),
+          enabled: canChangeOptions,
+          title: t.config.warpNoiseDelay,
+          inputToValue: (input) => OptionalRange.tryParse(input, allowEmpty: true),
+          presentValue: (value) => value.present(t),
+          formatInputValue: (value) => value.format(),
         ),
       ],
     );
@@ -154,10 +149,10 @@ class WarpLicenseAgreementModal extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = ref.watch(translationsProvider);
 
-    return AlertDialog.adaptive(
-      title: Text(t.settings.config.warpConsent.title),
+    return AlertDialog(
+      title: Text(t.config.warpConsent.title),
       content: Text.rich(
-        t.settings.config.warpConsent.description(
+        t.config.warpConsent.description(
           tos: (text) => TextSpan(
             text: text,
             style: const TextStyle(color: Colors.blue),
