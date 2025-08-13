@@ -180,6 +180,7 @@
         "af": "阿富汗 (af)",
         "id": "印尼 (id)",
         "tr": "土耳其 (tr) 🇹🇷",
+        "br": "巴西 (br) 🇧🇷",
         "other": "其他"
       },
       "themeMode": "主題模式",
@@ -198,7 +199,13 @@
       "ignoreBatteryOptimizationsMsg": "消除限制以獲得最佳 VPN 效能",
       "dynamicNotification": "在通知中顯示速度",
       "hapticFeedback": "觸覺回饋",
-      "autoIpCheck": "自動檢查連線的 IP"
+      "autoIpCheck": "自動檢查連線的 IP",
+      "actionAtClosing": "收盤時行動",
+      "actionsAtClosing": {
+        "askEachTime": "每次都詢問",
+        "hide": "隱藏",
+        "exit": "退出"
+      }
     },
     "advanced": {
       "sectionTitle": "進階設定",
@@ -327,6 +334,10 @@
     "reconnectMsg": "重新連線以使變更生效"
   },
   "config": {
+    "useXrayCoreWhenPossible": {
+      "Label": "盡可能使用 Xray-core",
+      "Description": "解析子連結時使用 Xray-core。您需要重新匯入子連結才能啟用此選項。"
+    },
     "resetBtn": "重置選項",
     "serviceMode": "服務模式",
     "quickSettings": "快速設定",
@@ -416,5 +427,11 @@
     "warpNoiseSize": "噪音大小",
     "warpNoiseMode": "噪音模式",
     "warpNoiseDelay": "噪音延遲"
+  },
+  "window": {
+    "hide": "隱藏",
+    "close": "关闭",
+    "alertMessage": "隱藏或退出應用程式？",
+    "remember": "記住我的選擇"
   }
 }
